@@ -1,6 +1,7 @@
 ﻿using Packaging = DocumentFormat.OpenXml.Packaging;
 using Spreadsheet = DocumentFormat.OpenXml.Spreadsheet;
 using System.Data;
+using System.Reflection;
 
 namespace ExcelIO;
 
@@ -15,14 +16,18 @@ public class WorkBook : IDisposable
 
     public WorkBook(string FileName, bool IsEditable = true)
     {
-        this.FileName = 
-            string.IsNullOrEmpty(FileName) ? 
-            "" : 
-            FileName;
+        this.FileName = string.IsNullOrEmpty(FileName) 
+            ? "" 
+            : FileName;
+
+        if (!Directory.Exists(Path.GetDirectoryName(FileName)))
+        {
+            throw new FileNotFoundException(FileName);
+        }
 
         if (!File.Exists(FileName))
         {
-            throw new FileNotFoundException(FileName);
+            CreateNewFile(FileName);
         }
 
         Doc = Packaging.SpreadsheetDocument.Open(FileName, IsEditable, new Packaging.OpenSettings { AutoSave = false });
@@ -32,6 +37,18 @@ public class WorkBook : IDisposable
         SharedItems = sharedStringPart?.SharedStringTable.Elements<Spreadsheet.SharedStringItem>().ToArray();
 
         RefreshSheets();
+
+    }
+
+    private static void CreateNewFile(string FileName)
+    {
+        Assembly LocalAssembly = Assembly.GetExecutingAssembly();
+        using Stream? resourceStream = LocalAssembly?.GetManifestResourceStream("Excelio.BlankTemplate.xlsx");
+        if (resourceStream != null)
+        {
+            using FileStream fileStream = new FileStream(FileName, FileMode.Create, FileAccess.Write);
+            resourceStream.CopyTo(fileStream);
+        }
     }
 
     public void Dispose()
@@ -44,8 +61,7 @@ public class WorkBook : IDisposable
     private void RefreshSheets()
     {
         var sheets = Book?.Descendants<Spreadsheet.Sheet>();
-        if (sheets != null && 
-            SharedItems != null)
+        if (sheets != null)
         {
             Sheets = new SheetList(
                 Doc,

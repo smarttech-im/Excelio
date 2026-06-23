@@ -58,6 +58,34 @@ public class WriteTests
     }
 
     [TestMethod]
+    public void NewFile()
+    {
+        var NewFileName = NewTempFileName();
+        var longName = Guid.NewGuid().ToString();
+        var withBannedChars = @"/\?*:[] After Banned Chars";
+        var startsWithApostrophe = "'Starts With Apostrophe";
+        var bannedWord = "History";
+
+        using (var wb = new ExcelIO.WorkBook(NewFileName))
+        {
+            Assert.IsNotNull(wb);
+            wb.Sheets.Add(longName);
+            wb.Sheets.Add(withBannedChars);
+            wb.Sheets.Add(startsWithApostrophe);
+            wb.Sheets.Add(bannedWord);
+            wb.Save();
+        }
+
+        using (var wb = new ExcelIO.WorkBook(NewFileName))
+        {
+            Assert.IsNotNull(wb);
+            Assert.IsTrue(wb.Sheets.Any(i => i.Name == "Starts With Apostrophe"));
+            Assert.IsTrue(wb.Sheets.Any(i => i.Name == " After Banned Chars"));
+            Assert.AreEqual(5, wb.Sheets.Count());
+        }
+    }
+
+    [TestMethod]
     public void RemoveSheet()
     {
         using var wb = new ExcelIO.WorkBook("lib/Multi_Sheet.xlsx");
