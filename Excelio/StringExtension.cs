@@ -12,11 +12,30 @@ internal static class StringExtension
 
     public static Type LowestCommonType(this string[] ValueList)
     {
-        if (ValueList == null) return typeof(string);
-        if (ValueList.All(x => x.IsBool())) return typeof(bool);
-        if (ValueList.All(x => x.IsInt())) return typeof(int);
-        if (ValueList.All(x => x.IsDecimal())) return typeof(decimal);
-        if (ValueList.All(x => x.IsDateTime())) return typeof(DateTime);
+        if (ValueList == null)
+        {
+            return typeof(string);
+        }
+
+        if (ValueList.All(x => x.IsBool()))
+        {
+            return typeof(bool);
+        }
+
+        if (ValueList.All(x => x.IsInt()))
+        {
+            return typeof(int);
+        }
+
+        if (ValueList.All(x => x.IsDecimal()))
+        {
+            return typeof(decimal);
+        }
+
+        if (ValueList.All(x => x.IsDateTime()))
+        {
+            return typeof(DateTime);
+        }
 
         return typeof(string);
     }

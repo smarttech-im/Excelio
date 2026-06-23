@@ -16,19 +16,13 @@ public class Cell
         set
         {
             _CellReference = value;
-            var (x, y) = TranslateToIndex(value);
+            (int x, int y) = TranslateToIndex(value);
             X = x;
             Y = y;
         }
     }
 
-    public Type ValueType
-    {
-        get
-        {
-            return InferType(Value);
-        }
-    }
+    public Type ValueType => InferType(Value);
 
     public override string ToString()
     {
@@ -42,10 +36,10 @@ public class Cell
             return (X: 0, Y: 0);
         }
 
-        var result = (X: 1, Y: 1);
-        var letters = " ABCDEFGHIJKLMNOPQRSTUVWXYZ".ToCharArray();
-        var letterPart = new string(CellReference.Where(i => char.IsLetter(i)).ToArray());
-        var numberPart = new string(CellReference.Where(i => char.IsDigit(i)).ToArray());
+        (int X, int Y) result = (X: 1, Y: 1);
+        char[] letters = " ABCDEFGHIJKLMNOPQRSTUVWXYZ".ToCharArray();
+        string letterPart = new(CellReference.Where(i => char.IsLetter(i)).ToArray());
+        string numberPart = new(CellReference.Where(i => char.IsDigit(i)).ToArray());
 
         foreach (var c in letterPart.ToCharArray().Reverse())
         {
@@ -63,7 +57,7 @@ public class Cell
 
     public static string TranslateToReference(int X, int Y)
     {
-        var letters = " ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        string letters = " ABCDEFGHIJKLMNOPQRSTUVWXYZ";
         int baseLength = 26;
         string result = string.Empty;
         int index = (X % baseLength) + 1;
@@ -83,10 +77,26 @@ public class Cell
 
     private static Type InferType(string Value)
     {
-        if (bool.TryParse(Value, out _)) return typeof(bool);
-        if (int.TryParse(Value, out _)) return typeof(int);
-        if (decimal.TryParse(Value, out _)) return typeof(decimal);
-        if (DateTime.TryParse(Value, out _)) return typeof(DateTime);
+        if (bool.TryParse(Value, out _))
+        {
+            return typeof(bool);
+        }
+
+        if (int.TryParse(Value, out _))
+        {
+            return typeof(int);
+        }
+
+        if (decimal.TryParse(Value, out _))
+        {
+            return typeof(decimal);
+        }
+
+        if (DateTime.TryParse(Value, out _))
+        {
+            return typeof(DateTime);
+        }
+
         return typeof(string);
     }
 }

@@ -29,27 +29,17 @@ public class SheetList : IEnumerable<Sheet>
         InnerList = NewList;
     }
 
-    public IEnumerator<Sheet> GetEnumerator()
-    {
-        return InnerList.GetEnumerator();
-    }
+    public IEnumerator<Sheet> GetEnumerator() => InnerList.GetEnumerator();
 
-    IEnumerator IEnumerable.GetEnumerator()
-    {
-        return this.GetEnumerator();
-    }
+    IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
 
-    public void Add(string Name)
-    {
-        Add(new Sheet { Name = Name });
-    }
+    public void Add(string Name) => Add(new Sheet { Name = Name });
 
     private static string TidyName(string Name, string SheetID)
     {
-        string result =
-            string.IsNullOrWhiteSpace(Name) ?
-            "Sheet" + SheetID :
-            Name;
+        string result = string.IsNullOrWhiteSpace(Name) 
+            ? "Sheet" + SheetID 
+            : Name;
 
         if (result.ToLower() == "history")
         {
@@ -81,36 +71,33 @@ public class SheetList : IEnumerable<Sheet>
 
     private void Add(Sheet item)
     {
-        if (Doc.WorkbookPart == null ||
-            Book == null ||
-            Book.WorkbookPart == null)
+        if (Doc.WorkbookPart == null || Book == null || Book.WorkbookPart == null)
         {
             return;
         }
 
-        var sheets = Doc.WorkbookPart.Workbook.GetFirstChild<Spreadsheet.Sheets>();
+        Spreadsheet.Sheets? sheets = Doc.WorkbookPart.Workbook.GetFirstChild<Spreadsheet.Sheets>();
         if (sheets == null)
         {
             return;
         }
 
         // Add a blank WorksheetPart.
-        var newWorksheetPart = Doc.WorkbookPart.AddNewPart<Packaging.WorksheetPart>();
+        Packaging.WorksheetPart newWorksheetPart = Doc.WorkbookPart.AddNewPart<Packaging.WorksheetPart>();
         newWorksheetPart.Worksheet = new Spreadsheet.Worksheet(new Spreadsheet.SheetData());
         string relationshipID = Book.WorkbookPart.GetIdOfPart(newWorksheetPart);
 
 
         // Get a unique ID for the new worksheet.
-        uint sheetID =
-            sheets.Elements<Spreadsheet.Sheet>().Any() ?
-            sheets.Elements<Spreadsheet.Sheet>().Select(s => s.SheetId?.Value ?? 0).Max() + 1 :
-            1;
+        uint sheetID = sheets.Elements<Spreadsheet.Sheet>().Any() 
+            ? sheets.Elements<Spreadsheet.Sheet>().Select(s => s.SheetId?.Value ?? 0).Max() + 1 
+            : 1;
 
         // Give the new worksheet a name.
         string sheetName = TidyName(item.Name, sheetID.ToString());
 
         // Append the new worksheet and associate it with the workbook.
-        var sheet = new Spreadsheet.Sheet()
+        Spreadsheet.Sheet sheet = new()
         {
             Id = relationshipID,
             SheetId = sheetID,
@@ -132,20 +119,18 @@ public class SheetList : IEnumerable<Sheet>
 
     public void Remove(string Name)
     {
-        if (Doc.WorkbookPart == null ||
-            Book == null ||
-            Book.WorkbookPart == null)
+        if (Doc.WorkbookPart == null || Book == null || Book.WorkbookPart == null)
         {
             return;
         }
 
-        var sheets = Doc.WorkbookPart.Workbook.GetFirstChild<Spreadsheet.Sheets>();
+        Spreadsheet.Sheets? sheets = Doc.WorkbookPart.Workbook.GetFirstChild<Spreadsheet.Sheets>();
         if (sheets == null)
         {
             return;
         }
 
-        var sheet = sheets.Elements<Spreadsheet.Sheet>().Where(i => i.Name == Name).FirstOrDefault();
+        Spreadsheet.Sheet? sheet = sheets.Elements<Spreadsheet.Sheet>().Where(i => i.Name == Name).FirstOrDefault();
         if (sheet == null)
         {
             return;
@@ -153,7 +138,7 @@ public class SheetList : IEnumerable<Sheet>
 
         sheets.RemoveChild(sheet);
 
-        var innerSheet = InnerList.Where(i => i.Name == Name).FirstOrDefault();
+        Sheet? innerSheet = InnerList.Where(i => i.Name == Name).FirstOrDefault();
         if (innerSheet == null)
         {
             return;

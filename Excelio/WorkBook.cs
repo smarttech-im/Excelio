@@ -1,7 +1,7 @@
-﻿using Packaging = DocumentFormat.OpenXml.Packaging;
-using Spreadsheet = DocumentFormat.OpenXml.Spreadsheet;
-using System.Data;
+﻿using System.Data;
 using System.Reflection;
+using Packaging = DocumentFormat.OpenXml.Packaging;
+using Spreadsheet = DocumentFormat.OpenXml.Spreadsheet;
 
 namespace ExcelIO;
 
@@ -16,8 +16,8 @@ public class WorkBook : IDisposable
 
     public WorkBook(string FileName, bool IsEditable = true)
     {
-        this.FileName = string.IsNullOrEmpty(FileName) 
-            ? "" 
+        this.FileName = string.IsNullOrEmpty(FileName)
+            ? ""
             : FileName;
 
         if (!Directory.Exists(Path.GetDirectoryName(FileName)))
@@ -33,7 +33,7 @@ public class WorkBook : IDisposable
         Doc = Packaging.SpreadsheetDocument.Open(FileName, IsEditable, new Packaging.OpenSettings { AutoSave = false });
         Part = Doc.WorkbookPart;
         Book = Part?.Workbook;
-        var sharedStringPart = Part?.SharedStringTablePart;
+        Packaging.SharedStringTablePart? sharedStringPart = Part?.SharedStringTablePart;
         SharedItems = sharedStringPart?.SharedStringTable.Elements<Spreadsheet.SharedStringItem>().ToArray();
 
         RefreshSheets();
@@ -46,7 +46,7 @@ public class WorkBook : IDisposable
         using Stream? resourceStream = LocalAssembly?.GetManifestResourceStream("Excelio.BlankTemplate.xlsx");
         if (resourceStream != null)
         {
-            using FileStream fileStream = new FileStream(FileName, FileMode.Create, FileAccess.Write);
+            using FileStream fileStream = new(FileName, FileMode.Create, FileAccess.Write);
             resourceStream.CopyTo(fileStream);
         }
     }
@@ -60,27 +60,33 @@ public class WorkBook : IDisposable
 
     private void RefreshSheets()
     {
-        var sheets = Book?.Descendants<Spreadsheet.Sheet>();
-        if (sheets != null)
+        IEnumerable<Spreadsheet.Sheet>? sheets = Book?.Descendants<Spreadsheet.Sheet>();
+        if (sheets == null)
         {
-            Sheets = new SheetList(
-                Doc,
-                Book,
-                sheets
-                .Where(i => 
-                    i != null && 
-                    i.Name != null)
-                .Select(i => new Sheet
-            {
-                SheetID = i?.SheetId,
-                FileName = FileName,
-                Name = i!.Name,
-                Part = Part,
-                ConnectedSheet = i,
-                SharedItems = SharedItems,
-            }).ToList());
+            return;
         }
+
+        List<Sheet> newList = sheets
+           .Where(i => i != null && i.Name != null)
+           .Select(LinkSheet)
+           .ToList();
+
+        Sheets = new SheetList(
+            Doc,
+            Book,
+            newList);
     }
+
+    private Sheet LinkSheet(Spreadsheet.Sheet i) =>
+        new Sheet
+        {
+            SheetID = i?.SheetId,
+            FileName = FileName,
+            Name = i?.Name ?? "Blank",
+            Part = Part,
+            ConnectedSheet = i,
+            SharedItems = SharedItems,
+        };
 
     public void Save()
     {
@@ -88,6 +94,7 @@ public class WorkBook : IDisposable
         {
             return;
         }
+
         Doc.Save();
     }
 
@@ -97,57 +104,52 @@ public class WorkBook : IDisposable
         {
             return;
         }
+
         Doc.SaveAs(FileName).Close();
     }
 
     public static string[,] ToArray(string FileName, string SheetName)
     {
-        using var wb = new WorkBook(FileName);
-        var sheet = wb.Sheets.Where(i => i.Name == SheetName).FirstOrDefault() ?? new Sheet();
-        return 
-            sheet == null ?
-            new string[0, 0] :
-            Converter.ToArray(sheet);
+        using WorkBook wb = new(FileName);
+        Sheet sheet = wb.Sheets.Where(i => i.Name == SheetName).FirstOrDefault() ?? new Sheet();
+        return sheet == null 
+            ? new string[0, 0] 
+            : Converter.ToArray(sheet);
     }
 
     public static Cell[,] ToCellArray(string FileName, string SheetName)
     {
-        using var wb = new WorkBook(FileName);
-        var sheet = wb.Sheets.Where(i => i.Name == SheetName).FirstOrDefault() ?? new Sheet();
-        return 
-            sheet == null ?
-            new Cell[0, 0] :
-            Converter.ToCellArray(sheet);
+        using WorkBook wb = new(FileName);
+        Sheet sheet = wb.Sheets.Where(i => i.Name == SheetName).FirstOrDefault() ?? new Sheet();
+        return sheet == null 
+            ? new Cell[0, 0] 
+            : Converter.ToCellArray(sheet);
     }
 
     public static string ToCSVString(string FileName, string SheetName)
     {
-        using var wb = new WorkBook(FileName);
-        var sheet = wb.Sheets.Where(i => i.Name == SheetName).FirstOrDefault() ?? new Sheet();
-        return 
-            sheet == null ?
-            "" :
-            Converter.ToCSVString(sheet);
+        using WorkBook wb = new(FileName);
+        Sheet sheet = wb.Sheets.Where(i => i.Name == SheetName).FirstOrDefault() ?? new Sheet();
+        return sheet == null 
+            ? "" 
+            : Converter.ToCSVString(sheet);
     }
 
     public static List<List<Cell>> ToList(string FileName, string SheetName)
     {
-        using var wb = new WorkBook(FileName);
-        var sheet = wb.Sheets.Where(i => i.Name == SheetName).FirstOrDefault() ?? new Sheet();
-        return 
-            sheet == null ?
-            new List<List<Cell>>() :
-            Converter.ToList(sheet);
+        using WorkBook wb = new(FileName);
+        Sheet sheet = wb.Sheets.Where(i => i.Name == SheetName).FirstOrDefault() ?? new Sheet();
+        return sheet == null
+            ? []
+            : Converter.ToList(sheet);
     }
 
     public static DataTable ToDataTable(string FileName, string SheetName, bool FieldNamesOnFirstRow = false, bool InferTypes = false)
     {
-        using var wb = new WorkBook(FileName);
-        var sheet = wb.Sheets.Where(i => i.Name == SheetName).FirstOrDefault() ?? new Sheet();
-        return 
-            sheet == null ?
-            new DataTable() :
-            Converter.ToDataTable(sheet, FieldNamesOnFirstRow, InferTypes);
+        using WorkBook wb = new(FileName);
+        Sheet sheet = wb.Sheets.Where(i => i.Name == SheetName).FirstOrDefault() ?? new Sheet();
+        return sheet == null 
+            ? new DataTable() 
+            : Converter.ToDataTable(sheet, FieldNamesOnFirstRow, InferTypes);
     }
-
 }

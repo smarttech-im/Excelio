@@ -18,7 +18,7 @@ public class Sheet
     public Cell GetCell(string CellReference)
     {
         CellReference = CellReference.Trim().ToUpper();
-        var (cells, sharedStringItems) = GetCells();
+        (List<Spreadsheet.Cell> cells, Spreadsheet.SharedStringItem[] sharedStringItems) = GetCells();
         string cellValue = cells
             .Where(i => i?.CellReference?.ToString() == CellReference)
             .Select(i =>
@@ -37,21 +37,20 @@ public class Sheet
 
     public void SetCell(string CellReference, string Value)
     {
-        if (Part == null ||
-            ConnectedSheet.Id == null)
+        if (Part == null ||ConnectedSheet.Id == null)
         {
             return;
         }
 
         CellReference = CellReference.Trim().ToUpper();
-        var worksheetPart = (Packaging.WorksheetPart)Part.GetPartById(ConnectedSheet!.Id);
-        var cells = worksheetPart.Worksheet.Descendants<Spreadsheet.Cell>();
+        Packaging.WorksheetPart worksheetPart = (Packaging.WorksheetPart)Part.GetPartById(ConnectedSheet!.Id);
+        IEnumerable<Spreadsheet.Cell> cells = worksheetPart.Worksheet.Descendants<Spreadsheet.Cell>();
         if (cells == null)
         {
             return;
         }
 
-        var cell = cells.Where(i => i?.CellReference?.ToString() == CellReference).FirstOrDefault();
+        Spreadsheet.Cell? cell = cells.Where(i => i?.CellReference?.ToString() == CellReference).FirstOrDefault();
         if (cell != null && cell.CellValue != null)
         {
             cell.CellValue.Text = Value;
@@ -61,7 +60,7 @@ public class Sheet
 
         uint rowIndex = uint.Parse(CellReference.ToCharArray().Where(i => char.IsNumber(i)).ToArray());
         Spreadsheet.Row row;
-        var sheetData = worksheetPart.Worksheet.GetFirstChild<Spreadsheet.SheetData>();
+        Spreadsheet.SheetData? sheetData = worksheetPart.Worksheet.GetFirstChild<Spreadsheet.SheetData>();
         if (sheetData == null)
         {
             return;
@@ -78,46 +77,43 @@ public class Sheet
         }
 
         // Get next cell after the insert location, if there is one
-        var refCell = row.Elements<Spreadsheet.Cell>().Where(c =>
+        Spreadsheet.Cell? refCell = row.Elements<Spreadsheet.Cell>().Where(c =>
                 c.CellReference?.Value?.Length == CellReference.Length &&
                 string.Compare(c.CellReference.Value, CellReference, true) > 0
             ).FirstOrDefault();
 
         // Create new cell then insert before the reference cell
-        var newCell = new Spreadsheet.Cell()
+        Spreadsheet.Cell newCell = new()
         {
             CellReference = CellReference,
             CellValue = new Spreadsheet.CellValue { Text = Value },
             DataType = Spreadsheet.CellValues.String,
         };
+
         row.InsertBefore(newCell, refCell);
     }
 
     private (List<Spreadsheet.Cell>, Spreadsheet.SharedStringItem[]) GetCells()
     {
-        if (!File.Exists(FileName) ||
-            Part == null ||
-            ConnectedSheet.Id == null)
+        if (!File.Exists(FileName) || Part == null || ConnectedSheet.Id == null)
         {
-            return (new List<Spreadsheet.Cell>(), Array.Empty<Spreadsheet.SharedStringItem>());
+            return ([], []);
         }
 
-        var worksheetPart = (Packaging.WorksheetPart)Part.GetPartById(ConnectedSheet.Id);
-        var cells = worksheetPart.Worksheet.Descendants<Spreadsheet.Cell>().ToList();
-        if (cells == null)
-        {
-            return (new List<Spreadsheet.Cell>(), SharedItems);
-        }
+        Packaging.WorksheetPart worksheetPart = (Packaging.WorksheetPart)Part.GetPartById(ConnectedSheet.Id);
+        List<Spreadsheet.Cell> cells = worksheetPart.Worksheet.Descendants<Spreadsheet.Cell>().ToList();
 
-        return (cells, SharedItems);
+        return cells == null 
+            ? (new List<Spreadsheet.Cell>(), SharedItems) 
+            : ((List<Spreadsheet.Cell>, Spreadsheet.SharedStringItem[]))(cells, SharedItems);
     }
 
     internal List<Cell> ToCellList()
     {
-        var result = new List<Cell>();
-        var (cells, sharedStringItems) = GetCells();
+        List<Cell> result = [];
+        (List<Spreadsheet.Cell> cells, Spreadsheet.SharedStringItem[] sharedStringItems) = GetCells();
 
-        foreach (var cell in cells)
+        foreach (Spreadsheet.Cell? cell in cells)
         {
             var cellReference = cell?.CellReference?.ToString() ?? "";
             var value = cell?.CellValue?.Text ?? "";
@@ -137,9 +133,10 @@ public class Sheet
 
     internal (List<Cell> Cells, int Width, int Height) ToCellListWithRange()
     {
-        var cells = ToCellList();
-        var width = cells.Select(i => i.X).Max() + 1;
-        var height = cells.Select(i => i.Y).Max() + 1;
+        List<Cell> cells = ToCellList();
+        int width = cells.Select(i => i.X).Max() + 1;
+        int height = cells.Select(i => i.Y).Max() + 1;
+
         return (cells, width, height);
     }
 
@@ -156,11 +153,9 @@ public class Sheet
 
     public void SaveToCSV(string FileName) => Functions.SaveToCSV(this, FileName);
 
-
     public void Set(string[,] Cells)
     {
-        if (Part == null ||
-            ConnectedSheet.Id == null)
+        if (Part == null || ConnectedSheet.Id == null)
         {
             return;
         }
@@ -170,23 +165,24 @@ public class Sheet
         {
             throw new ArgumentOutOfRangeException(nameof(Cells), "Array width exceeds size limit");
         }
+
         if (Cells.GetLength(1) > limit)
         {
             throw new ArgumentOutOfRangeException(nameof(Cells), "Array height exceeds size limit");
         }
 
-
-        var worksheetPart = (Packaging.WorksheetPart)Part.GetPartById(ConnectedSheet!.Id);
-        var sheetData = worksheetPart.Worksheet.GetFirstChild<Spreadsheet.SheetData>();
+        Packaging.WorksheetPart worksheetPart = (Packaging.WorksheetPart)Part.GetPartById(ConnectedSheet!.Id);
+        Spreadsheet.SheetData? sheetData = worksheetPart.Worksheet.GetFirstChild<Spreadsheet.SheetData>();
         if (sheetData == null)
         {
             return;
         }
+
         sheetData.RemoveAllChildren();
 
         for (int y = 0; y < Cells.GetLength(1); y++)
         {
-            var newRow = new Spreadsheet.Row();
+            Spreadsheet.Row newRow = new();
             for (int x = 0; x < Cells.GetLength(0); x++)
             {
                 var cellReference = Cell.TranslateToReference(x, y);
@@ -197,6 +193,7 @@ public class Sheet
                     DataType = Spreadsheet.CellValues.String,
                 });
             }
+
             sheetData.Append(newRow);
         }
     }
